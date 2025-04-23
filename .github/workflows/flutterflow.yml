@@ -7,35 +7,11 @@ on:
         
 jobs:
   deploy:
-    name: Deploy Flutter to Web
     runs-on: ubuntu-latest
-    
-    
-    # (2)
     steps:
       - uses: actions/checkout@v1
-
-      # This is needed to set the public keys in the constants
-      - name: set app version
-        uses: richardrigutins/replace-in-files@v2
-        with:
-          files: 'lib/app_constants.dart'
-          search-text: "static const String CurrentVersion = '0.0';"
-          replacement-text: "static const String CurrentVersion = '${{ github.head_ref || github.ref_name }}';"
-          
-      - uses: subosito/flutter-action@v2
-        with:
-          channel: "stable"
-
-      - name: 🌍 Enable Web
-        run: flutter config --enable-web
-
-      - name: 📦 Get packages
-        run: flutter pub get
-        
-      - name: Upload Folder to S3
-        uses: actions/checkout@v1
         env:
           AWS_SECRET_ID: ${{ secrets.AWS_KEY }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET }}
           BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
