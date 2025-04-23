@@ -13,7 +13,7 @@ jobs:
     
     # (2)
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v1
 
       # This is needed to set the public keys in the constants
       - name: set app version
@@ -39,4 +39,6 @@ jobs:
           AWS_SECRET_ID: ${{ secrets.AWS_KEY }}
           AWS_SECRET_KEY: ${{ secrets.AWS_SECRET }}
           BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
-          DEST_FILE: '${{ github.head_ref || github.ref_name }}-${{ github.run_number }}(${{ inputs.environment }}).zip'
+        
+      - name: Deploy static site to S3 bucket
+        run: aws s3 sync ./ s3://typ-customer-dev-ui --delete
