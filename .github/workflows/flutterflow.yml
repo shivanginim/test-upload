@@ -1,19 +1,102 @@
-name: Upload Website
+name: Push Package
 
 on:
-  push:
-    branches:
-    - flutterflow
-
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        type: environment
+        required: true
+        default: staging
+        
 jobs:
-  deploy:
+  build_and_deploy_web:
+    name: Build & Deploy Flutter to Web
     runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+    
+    
+    # (2)
     steps:
-    - uses: actions/checkout@master
-    - uses: jakejarvis/s3-sync-action@master
-      with:
-        args: --acl public-read --follow-symlinks --delete --exclude '.git*/*'
-      env:
-        AWS_S3_BUCKET: ${{ secrets.AWS_S3_BUCKET }}
-        AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-        AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      - uses: actions/checkout@v2
+
+      # This is needed to set the public keys - Flutterflow issue
+      - name: replace public key
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/backend/supabase/supabase.dart'
+          search-text: '${{ vars.DEV_SUPABASE_PUBLIC_KEY }}'
+          replacement-text: '${{ vars.SUPABASE_PUBLIC_KEY }}'
+
+      # This is needed to set the public keys
+      - name: replace url
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/backend/supabase/supabase.dart'
+          search-text: '${{ vars.DEV_SUPABASE_URL }}'
+          replacement-text: '${{ vars.SUPABASE_URL }}'
+
+      # This is needed to set the app url
+      - name: replace app url
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/app_constants.dart'
+          search-text: '${{ vars.DEV_APP_URL }}'
+          replacement-text: '${{ vars.APP_URL }}'
+          
+      # This is needed to set the public keys in the constants
+      - name: replace anon key
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/app_constants.dart'
+          search-text: '${{ vars.DEV_SUPABASE_PUBLIC_KEY }}'
+          replacement-text: '${{ vars.SUPABASE_PUBLIC_KEY }}'
+
+      # V2 login url
+      - name: replace login url
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/app_constants.dart'
+          search-text: '${{ vars.V2_LOGIN_URL }}'
+          replacement-text: '${{ secrets.V2_LOGIN_URL }}'
+
+      # V2 logout url
+      - name: replace logout url
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/app_constants.dart'
+          search-text: '${{ vars.V2_LOGOUT_URL }}'
+          replacement-text: '${{ secrets.V2_LOGOUT_URL }}'
+
+
+      # This is needed to set the public keys in the constants
+      - name: set app version
+        uses: richardrigutins/replace-in-files@v2
+        with:
+          files: 'lib/app_constants.dart'
+          search-text: "static const String CurrentVersion = '0.0';"
+          replacement-text: "static const String CurrentVersion = '${{ github.head_ref || github.ref_name }}';"
+          
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+
+      - name: 🌍 Enable Web
+        run: flutter config --enable-web
+
+      - name: 📦 Get packages
+        run: flutter pub get
+
+      - name: 🏭 Build Web Application
+        run: flutter build web --release
+        
+      - name: Upload ZIP to S3
+        uses: NotCoffee418/s3-zip-upload@v1.4
+        env:
+          AWS_SECRET_ID: ${{ secrets.AWS_KEY }}
+          AWS_SECRET_KEY: ${{ secrets.AWS_SECRET }}
+          BUCKET_NAME: ${{ secrets.AWS_BUCKET_NAME }}
+          AWS_REGION: ${{ vars.AWS_DEFAULT_REGION }}
+          SOURCE_MODE: ZIP
+          SOURCE_PATH: ./build/web
+          DEST_FILE: '${{ github.head_ref || github.ref_name }}-${{ github.run_number }}(${{ inputs.environment }}).zip'
