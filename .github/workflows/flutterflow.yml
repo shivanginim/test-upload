@@ -15,5 +15,5 @@ jobs:
           args: --acl public-read --follow-symlinks --delete --exclude '.git*/*'
         env:
           AWS_S3_BUCKET: typ-customer-dev-ui
-          AWS_ACCESS_KEY_ID: AKIAXSWA6CTRYCRXUZTU
+          AWS_ACCESS_KEY_ID: AKIAXSWA6CTRRVCPFCGK
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
